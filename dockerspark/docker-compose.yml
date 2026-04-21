@@ -1,0 +1,106 @@
+services:
+  spark-master:
+    image: apache/spark:3.5.0
+    container_name: spark-master
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.master.Master
+    ports:
+      - "8080:8080"
+      - "7077:7077"
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks:
+      - spark-net
+
+  spark-worker:
+    image: apache/spark:3.5.0
+    container_name: spark-worker
+    depends_on:
+      - spark-master
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.deploy.worker.Worker
+      spark://spark-master:7077
+    ports:
+      - "8081:8081"
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    environment:
+      - SPARK_WORKER_MEMORY=2g
+      - SPARK_WORKER_CORES=2
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    networks:
+      - spark-net
+
+  jupyter:
+    image: jupyter/pyspark-notebook:latest
+    container_name: spark-jupyter
+    ports:
+      - "8888:8888"
+    volumes:
+      - ./notebooks:/home/jovyan/work
+      - ./data:/data
+      - ./output:/output
+    environment:
+      - SPARK_MASTER=spark://spark-master:7077
+      - JUPYTER_ENABLE_LAB=yes
+    deploy:
+      resources:
+        limits:
+          memory: 2g
+    depends_on:
+      - spark-master
+    networks:
+      - spark-net
+
+  dashboard:
+    build: ./dashboard
+    container_name: spark-dashboard
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    deploy:
+      resources:
+        limits:
+          memory: 512m
+    networks:
+      - spark-net
+
+  spark-thrift:
+    image: apache/spark:3.5.0
+    container_name: spark-thrift
+    depends_on:
+      - spark-master
+    command: >
+      /opt/spark/bin/spark-class
+      org.apache.spark.sql.hive.thriftserver.HiveThriftServer2
+      --master spark://spark-master:7077
+      --conf spark.hive.thriftServer.singleSession=true
+      --conf spark.sql.warehouse.dir=/output/warehouse
+    ports:
+      - "10000:10000"
+    volumes:
+      - ./data:/data
+      - ./output:/output
+    deploy:
+      resources:
+        limits:
+          memory: 1g
+    networks:
+      - spark-net
+
+networks:
+  spark-net:
+    driver: bridge
