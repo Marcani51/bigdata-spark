@@ -2,6 +2,7 @@ services:
   spark-master:
     image: apache/spark:3.5.0
     container_name: spark-master
+    restart: unless-stopped
     command: >
       /opt/spark/bin/spark-class
       org.apache.spark.deploy.master.Master
@@ -15,12 +16,18 @@ services:
       resources:
         limits:
           memory: 1g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - spark-net
 
   spark-worker:
     image: apache/spark:3.5.0
     container_name: spark-worker
+    restart: unless-stopped
     depends_on:
       - spark-master
     command: >
@@ -39,12 +46,18 @@ services:
       resources:
         limits:
           memory: 2g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - spark-net
 
   jupyter:
     image: jupyter/pyspark-notebook:latest
     container_name: spark-jupyter
+    restart: unless-stopped
     ports:
       - "8888:8888"
     volumes:
@@ -54,10 +67,17 @@ services:
     environment:
       - SPARK_MASTER=spark://spark-master:7077
       - JUPYTER_ENABLE_LAB=yes
+      # Consider setting JUPYTER_TOKEN to a secure password
+      # - JUPYTER_TOKEN=your_secure_password
     deploy:
       resources:
         limits:
           memory: 2g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     depends_on:
       - spark-master
     networks:
@@ -66,6 +86,7 @@ services:
   dashboard:
     build: ./dashboard
     container_name: spark-dashboard
+    restart: unless-stopped
     ports:
       - "8501:8501"
     volumes:
@@ -75,12 +96,18 @@ services:
       resources:
         limits:
           memory: 512m
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - spark-net
 
   spark-thrift:
     image: apache/spark:3.5.0
     container_name: spark-thrift
+    restart: unless-stopped
     depends_on:
       - spark-master
     command: >
@@ -98,6 +125,11 @@ services:
       resources:
         limits:
           memory: 1g
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
     networks:
       - spark-net
 
